@@ -1,1 +1,1 @@
-"""Unitree Go1 quadruped."""
+"""Unitree Go2 quadruped."""

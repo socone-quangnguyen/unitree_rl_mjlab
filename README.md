@@ -4,7 +4,7 @@
 ## ✳️ Overview
 Unitree RL Mjlab is a reinforcement learning project built upon the
 [mjlab](https://github.com/mujocolab/mjlab.git), using MuJoCo as its 
-physics simulation backend, currently supporting Unitree Go2,  Unitree G1-29dof, and Unitree H1_2.
+physics simulation backend, currently supporting Unitree Go2, Unitree G1 and Unitree H1_2.
 
 Mjlab combines [Isaac Lab](https://github.com/isaac-sim/IsaacLab)'s proven API
 with best-in-class [MuJoCo](https://github.com/google-deepmind/mujoco_warp)
@@ -58,6 +58,7 @@ python scripts/train.py Mjlab-Velocity-Flat-Unitree-G1 \
 Available velocity tracking tasks:
   - Mjlab-Velocity-Flat-Unitree-Go2
   - Mjlab-Velocity-Flat-Unitree-G1
+  - Mjlab-Velocity-Flat-Unitree-G1-23DOF
   - Mjlab-Velocity-Flat-Unitree-H1_2
 
 > [!NOTE]

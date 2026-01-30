@@ -1,1 +1,1 @@
-"""Unitree H1_2 humanoid."""
+"""Unitree G1 humanoid."""
