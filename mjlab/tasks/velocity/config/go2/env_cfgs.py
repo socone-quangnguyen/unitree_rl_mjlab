@@ -1,4 +1,4 @@
-"""Unitree Go1 velocity environment configurations."""
+"""Unitree Go2 velocity environment configurations."""
 
 from mjlab.asset_zoo.robots import (
   get_go2_robot_cfg,
@@ -60,19 +60,22 @@ def unitree_go2_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.events["base_com"].params["asset_cfg"].body_names = ("base_link",)
 
   cfg.rewards["pose"].params["std_standing"] = {
-    r".*(FR|FL|RR|RL)_(hip|thigh)_joint.*": 0.05,
-    r".*(FR|FL|RR|RL)_calf_joint.*": 0.1,
+    r".*(FR|FL|RR|RL)_hip_joint.*": 0.05,
+    r".*(FR|FL|RR|RL)_thigh_joint.*": 0.1,
+    r".*(FR|FL|RR|RL)_calf_joint.*": 0.15,
   }
   cfg.rewards["pose"].params["std_walking"] = {
-    r".*(FR|FL|RR|RL)_(hip|thigh)_joint.*": 0.3,
-    r".*(FR|FL|RR|RL)_calf_joint.*": 0.6,
+    r".*(FR|FL|RR|RL)_hip_joint.*": 0.15,
+    r".*(FR|FL|RR|RL)_thigh_joint.*": 0.35,
+    r".*(FR|FL|RR|RL)_calf_joint.*": 0.5,
   }
   cfg.rewards["pose"].params["std_running"] = {
-    r".*(FR|FL|RR|RL)_(hip|thigh)_joint.*": 0.3,
-    r".*(FR|FL|RR|RL)_calf_joint.*": 0.6,
+    r".*(FR|FL|RR|RL)_hip_joint.*": 0.15,
+    r".*(FR|FL|RR|RL)_thigh_joint.*": 0.35,
+    r".*(FR|FL|RR|RL)_calf_joint.*": 0.5,
   }
   cfg.rewards["body_ang_vel"].params["asset_cfg"].body_names = ("base_link",)
-  cfg.rewards["foot_clearance"].weight = 0.0
+  cfg.rewards["foot_clearance"].params["asset_cfg"].site_names = site_names
   cfg.rewards["foot_slip"].params["asset_cfg"].site_names = site_names
 
   cfg.terminations["illegal_contact"] = TerminationTermCfg(

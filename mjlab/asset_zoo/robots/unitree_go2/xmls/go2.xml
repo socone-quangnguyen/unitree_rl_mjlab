@@ -22,7 +22,7 @@
         <motor ctrlrange="-45.43 45.43"/>
       </default>
       <default class="visual">
-        <geom type="mesh" contype="0" conaffinity="0" group="2"/>
+        <geom type="mesh" contype="0" conaffinity="0" density="0" group="2"/>
       </default>
       <default class="collision">
         <geom group="3"/>

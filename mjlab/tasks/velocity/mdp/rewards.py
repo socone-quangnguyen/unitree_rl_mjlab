@@ -36,7 +36,7 @@ def track_linear_velocity(
   actual = asset.data.root_link_lin_vel_b
   xy_error = torch.sum(torch.square(command[:, :2] - actual[:, :2]), dim=1)
   z_error = torch.square(actual[:, 2])
-  lin_vel_error = xy_error + (2 * z_error)
+  lin_vel_error = xy_error + z_error
   return torch.exp(-lin_vel_error / std**2)
 
 
@@ -55,9 +55,7 @@ def track_angular_velocity(
   assert command is not None, f"Command '{command_name}' not found."
   actual = asset.data.root_link_ang_vel_b
   z_error = torch.square(command[:, 2] - actual[:, 2])
-  xy_error = torch.sum(torch.square(actual[:, :2]), dim=1)
-  ang_vel_error = z_error +(0.05 * xy_error)
-  return torch.exp(-ang_vel_error / std**2)
+  return torch.exp(-z_error / std**2)
 
 
 def flat_orientation(
@@ -123,24 +121,21 @@ def angular_momentum_penalty(
 def feet_air_time(
   env: ManagerBasedRlEnv,
   sensor_name: str,
-  threshold_min: float = 0.05,
-  threshold_max: float = 0.5,
+  threshold: float = 0.3,
   command_name: str | None = None,
-  command_threshold: float = 0.5,
+  command_threshold: float = 0.1,
 ) -> torch.Tensor:
   """Reward feet air time."""
   sensor: ContactSensor = env.scene[sensor_name]
   sensor_data = sensor.data
-  current_air_time = sensor_data.current_air_time
-  assert current_air_time is not None
-  in_range = (current_air_time > threshold_min) & (current_air_time < threshold_max)
-  reward = torch.sum(in_range.float(), dim=1)
-  in_air = current_air_time > 0
-  num_in_air = torch.sum(in_air.float())
-  mean_air_time = torch.sum(current_air_time * in_air.float()) / torch.clamp(
-    num_in_air, min=1
-  )
-  env.extras["log"]["Metrics/air_time_mean"] = mean_air_time
+  air_time = sensor_data.current_air_time
+  contact_time = sensor_data.current_contact_time
+  in_contact = contact_time > 0.0
+  in_mode_time = torch.where(in_contact, contact_time, air_time)
+  single_stance = torch.mean(in_contact.float(), dim=1) == 0.5
+  mode_time = torch.min(torch.where(single_stance.unsqueeze(-1), in_mode_time, 0.0), dim=1)[0]
+  error = torch.abs(mode_time - threshold)
+  reward = torch.clamp(threshold - error, min=0.0)
   if command_name is not None:
     command = env.command_manager.get_command(command_name)
     if command is not None:
@@ -156,7 +151,7 @@ def feet_clearance(
   env: ManagerBasedRlEnv,
   target_height: float,
   command_name: str | None = None,
-  command_threshold: float = 0.01,
+  command_threshold: float = 0.1,
   asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> torch.Tensor:
   """Penalize deviation from target clearance height, weighted by foot velocity."""
@@ -165,7 +160,7 @@ def feet_clearance(
   foot_vel_xy = asset.data.site_lin_vel_w[:, asset_cfg.site_ids, :2]  # [B, N, 2]
   vel_norm = torch.norm(foot_vel_xy, dim=-1)  # [B, N]
   delta = torch.abs(foot_z - target_height)  # [B, N]
-  cost = torch.sum(delta * vel_norm, dim=1)  # [B]
+  cost = torch.mean(delta * vel_norm, dim=1)  # [B]
   if command_name is not None:
     command = env.command_manager.get_command(command_name)
     if command is not None:
@@ -370,3 +365,24 @@ class variable_posture:
     error_squared = torch.square(current_joint_pos - desired_joint_pos)
 
     return torch.exp(-torch.mean(error_squared / (std**2), dim=1))
+
+
+def stand_still(
+        env: ManagerBasedRlEnv,
+        command_name: str,
+        command_threshold: float = 0.1,
+        asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG
+) -> torch.Tensor:
+    asset: Entity = env.scene[asset_cfg.name]
+    diff_angle = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
+    reward = torch.sum(torch.square(diff_angle), dim=1)
+    if command_name is not None:
+        command = env.command_manager.get_command(command_name)
+        if command is not None:
+            linear_norm = torch.norm(command[:, :2], dim=1)
+            angular_norm = torch.abs(command[:, 2])
+            total_command = linear_norm + angular_norm
+            scale = (total_command <= command_threshold).float()
+            reward *= scale
+    return reward
+

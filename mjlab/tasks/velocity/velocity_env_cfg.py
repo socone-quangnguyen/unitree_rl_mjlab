@@ -111,7 +111,7 @@ def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
       ranges=UniformVelocityCommandCfg.Ranges(
         lin_vel_x=(-0.5, 1.0),
         lin_vel_y=(-0.5, 0.5),
-        ang_vel_z=(-0.5, 0.5),
+        ang_vel_z=(-1.0, 1.0),
         heading=(-math.pi, math.pi),
       ),
     )
@@ -233,11 +233,21 @@ def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
     "joint_acc_l2": RewardTermCfg(func=mdp.joint_acc_l2, weight=-2.5e-7),
     "joint_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, weight=-10.0),
     "action_rate_l2": RewardTermCfg(func=mdp.action_rate_l2, weight=-0.05),
+    "foot_air_time": RewardTermCfg(
+      func=mdp.feet_air_time,
+      weight=1.0,
+      params={
+        "sensor_name": "feet_ground_contact",
+        "threshold": 0.3,
+        "command_name": "twist",
+        "command_threshold": 0.1,
+      },
+    ),
     "foot_clearance": RewardTermCfg(
       func=mdp.feet_clearance,
       weight=-1.0,
       params={
-        "target_height": 0.10,
+        "target_height": 0.12,
         "command_name": "twist",
         "command_threshold": 0.1,
         "asset_cfg": SceneEntityCfg("robot", site_names=()),  # Set per-robot.
@@ -260,6 +270,15 @@ def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
         "sensor_name": "feet_ground_contact",
         "command_name": "twist",
         "command_threshold": 0.1,
+      },
+    ),
+    "stand_still": RewardTermCfg(
+      func=mdp.stand_still,
+      weight=-1.0,
+      params={
+        "command_name": "twist",
+        "command_threshold": 0.1,
+        "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
       },
     ),
   }
