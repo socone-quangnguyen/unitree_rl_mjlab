@@ -58,6 +58,9 @@ class OnPolicyRunner:
         self.tot_time = 0
         self.current_learning_iteration = 0
         self.git_status_repos = [rsl_rl.__file__]
+        # Track recent checkpoint paths for rotation
+        self._checkpoint_paths: deque = deque()
+        self._max_checkpoints: int = self.cfg.get("max_checkpoints", 3)
 
     def learn(self, num_learning_iterations: int, init_at_random_ep_len: bool = False):  # noqa: C901
         # initialize writer
@@ -158,7 +161,7 @@ class OnPolicyRunner:
                 self.log(locals())
                 # Save model
                 if it % self.save_interval == 0:
-                    self.save(os.path.join(self.log_dir, f"model_{it}.pt"))
+                    self._save_and_rotate(os.path.join(self.log_dir, f"model_{it}.pt"))
 
             # Clear episode infos
             ep_infos.clear()
@@ -173,7 +176,7 @@ class OnPolicyRunner:
 
         # Save the final model after training
         if self.log_dir is not None and not self.disable_logs:
-            self.save(os.path.join(self.log_dir, f"model_{self.current_learning_iteration}.pt"))
+            self._save_and_rotate(os.path.join(self.log_dir, f"model_{self.current_learning_iteration}.pt"))
 
     def _boxed_print(self, content: str, width: int):
         """
@@ -363,6 +366,16 @@ class OnPolicyRunner:
         # -- RND
         if hasattr(self.alg, "rnd") and self.alg.rnd:
             self.alg.rnd.eval()
+
+    def _save_and_rotate(self, path: str, infos=None):
+        """Save a checkpoint and delete the oldest one if over max_checkpoints limit."""
+        self.save(path, infos)
+        self._checkpoint_paths.append(path)
+        while len(self._checkpoint_paths) > self._max_checkpoints:
+            old_path = self._checkpoint_paths.popleft()
+            if os.path.exists(old_path):
+                os.remove(old_path)
+                print(f"[INFO] Deleted old checkpoint: {os.path.basename(old_path)}")
 
     def add_git_repo_to_log(self, repo_file_path):
         self.git_status_repos.append(repo_file_path)
