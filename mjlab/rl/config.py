@@ -76,8 +76,10 @@ class RslRlBaseRunnerCfg:
   obs_groups: dict[str, tuple[str, ...]] = field(
     default_factory=lambda: {"policy": ("policy",), "critic": ("critic",)},
   )
-  save_interval: int = 50
+  save_interval: int = 100
   """The number of iterations between saves."""
+  max_checkpoints: int = 3
+  """The maximum number of recent checkpoints to keep. Older checkpoints are deleted automatically."""
   experiment_name: str = "exp1"
   """The experiment name."""
   run_name: str = ""
