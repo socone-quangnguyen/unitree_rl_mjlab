@@ -136,6 +136,9 @@ class ActorCritic(nn.Module):
                 std = torch.exp(self.log_std).expand_as(mean)
             else:
                 raise ValueError(f"Unknown standard deviation type: {self.noise_std_type}. Should be 'scalar' or 'log'")
+        # Clamp std to prevent NaN/negative values (e.g. from rough terrain NaN gradients)
+        # corrupting the distribution and crashing training.
+        std = torch.nan_to_num(std, nan=1e-6, posinf=1.0).clamp(min=1e-6)
         # create distribution
         self.distribution = Normal(mean, std)
 
