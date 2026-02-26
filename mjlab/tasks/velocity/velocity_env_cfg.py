@@ -348,7 +348,7 @@ def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
     ),
     sim=SimulationCfg(
       nconmax=64,
-      njmax=300,
+      njmax=2048,
       contact_sensor_maxmatch=512,
       mujoco=MujocoCfg(
         timestep=0.005,
