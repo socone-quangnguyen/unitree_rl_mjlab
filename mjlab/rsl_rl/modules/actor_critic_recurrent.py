@@ -157,6 +157,7 @@ class ActorCriticRecurrent(nn.Module):
         std = torch.clamp(std, min=1e-6)
         std = torch.nan_to_num(std, nan=1.0, posinf=1.0, neginf=1e-6)
         mean = torch.nan_to_num(mean, nan=0.0)
+        self.distribution = Normal(mean, std)
 
     def act(self, obs, masks=None, hidden_states=None):
         obs = self.get_actor_obs(obs)
