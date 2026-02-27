@@ -39,10 +39,12 @@ def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
       func=mdp.builtin_sensor,
       params={"sensor_name": "robot/imu_ang_vel"},
       noise=Unoise(n_min=-0.2, n_max=0.2),
+      clip=(-10.0, 10.0),
     ),
     "projected_gravity": ObservationTermCfg(
       func=mdp.projected_gravity,
       noise=Unoise(n_min=-0.05, n_max=0.05),
+      clip=(-1.0, 1.0),
     ),
     "command": ObservationTermCfg(
       func=mdp.generated_commands,
@@ -51,10 +53,12 @@ def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
     "joint_pos": ObservationTermCfg(
       func=mdp.joint_pos_rel,
       noise=Unoise(n_min=-0.01, n_max=0.01),
+      clip=(-3.14, 3.14),
     ),
     "joint_vel": ObservationTermCfg(
       func=mdp.joint_vel_rel,
       noise=Unoise(n_min=-1.5, n_max=1.5),
+      clip=(-10.0, 10.0),
     ),
     "actions": ObservationTermCfg(func=mdp.last_action),
   }
@@ -63,6 +67,7 @@ def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
     "base_lin_vel": ObservationTermCfg(
       func=mdp.builtin_sensor,
       params={"sensor_name": "robot/imu_lin_vel"},
+      clip=(-5.0, 5.0),
     ),
     **policy_terms,
   }
