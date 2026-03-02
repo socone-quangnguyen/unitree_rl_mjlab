@@ -111,7 +111,7 @@ def angular_momentum_penalty(
 ) -> torch.Tensor:
   """Penalize whole-body angular momentum to encourage natural arm swing."""
   angmom_sensor: BuiltinSensor = env.scene[sensor_name]
-  angmom = angmom_sensor.data
+  angmom = torch.nan_to_num(angmom_sensor.data, nan=0.0)
   angmom_magnitude_sq = torch.sum(torch.square(angmom), dim=-1)
   angmom_magnitude = torch.sqrt(angmom_magnitude_sq)
   env.extras["log"]["Metrics/angular_momentum_mean"] = torch.mean(angmom_magnitude)
@@ -157,7 +157,7 @@ def feet_clearance(
   """Penalize deviation from target clearance height, weighted by foot velocity."""
   asset: Entity = env.scene[asset_cfg.name]
   foot_z = asset.data.site_pos_w[:, asset_cfg.site_ids, 2]  # [B, N]
-  foot_vel_xy = asset.data.site_lin_vel_w[:, asset_cfg.site_ids, :2]  # [B, N, 2]
+  foot_vel_xy = torch.nan_to_num(asset.data.site_lin_vel_w[:, asset_cfg.site_ids, :2], nan=0.0)  # [B, N, 2]
   vel_norm = torch.norm(foot_vel_xy, dim=-1)  # [B, N]
   delta = torch.abs(foot_z - target_height)  # [B, N]
   cost = torch.mean(delta * vel_norm, dim=1)  # [B]
@@ -242,7 +242,7 @@ def feet_slip(
   active = (total_command > command_threshold).float()
   assert contact_sensor.data.found is not None
   in_contact = (contact_sensor.data.found > 0).float()  # [B, N]
-  foot_vel_xy = asset.data.site_lin_vel_w[:, asset_cfg.site_ids, :2]  # [B, N, 2]
+  foot_vel_xy = torch.nan_to_num(asset.data.site_lin_vel_w[:, asset_cfg.site_ids, :2], nan=0.0)  # [B, N, 2]
   vel_xy_norm = torch.norm(foot_vel_xy, dim=-1)  # [B, N]
   vel_xy_norm_sq = torch.square(vel_xy_norm)  # [B, N]
   cost = torch.sum(vel_xy_norm_sq * in_contact, dim=1) * active

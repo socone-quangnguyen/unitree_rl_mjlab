@@ -274,6 +274,7 @@ class ObservationManager(ManagerBase):
         obs = self._group_obs_class_instances[term_name](obs)
       if term_cfg.clip:
         obs = obs.clip_(min=term_cfg.clip[0], max=term_cfg.clip[1])
+      obs = torch.nan_to_num(obs, nan=0.0)
       if term_cfg.scale is not None:
         scale = term_cfg.scale
         assert isinstance(scale, torch.Tensor)
