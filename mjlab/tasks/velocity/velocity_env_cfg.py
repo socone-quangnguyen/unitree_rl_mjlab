@@ -326,7 +326,7 @@ def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
       terrain=TerrainImporterCfg(
         terrain_type="generator",
         terrain_generator=replace(ROUGH_TERRAINS_CFG),
-        max_init_terrain_level=5,
+        max_init_terrain_level=0,
       ),
       num_envs=1,
       extent=2.0,

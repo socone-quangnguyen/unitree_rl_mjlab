@@ -828,21 +828,21 @@ Prevents "gradient explosion" — often caused by sudden extreme rewards (e.g., 
 │                                                              │
 │  for step in range(24):                                      │
 │                                                              │
-│    obs ──→ [Actor MLP] ──→ N(μ,σ) ──sample──→ action        │
-│    obs ──→ [Critic MLP] ──→ V(s_t)                          │
-│    log π(a|s) ← distribution.log_prob(action)               │
+│    obs ──→ [Actor MLP] ──→ N(μ,σ) ──sample──→ action         │
+│    obs ──→ [Critic MLP] ──→ V(s_t)                           │
+│    log π(a|s) ← distribution.log_prob(action)                │
 │                                                              │
-│    action ──→ MuJoCo (4096 envs) ──→ obs', reward, done     │
+│    action ──→ MuJoCo (4096 envs) ──→ obs', reward, done      │
 │                                                              │
-│    Store: (obs, action, reward, done, V, log_π, μ, σ)       │
-│    RND: reward += ||predict(obs) - target(obs)||²           │
-│    Timeout bootstrap: reward += γ·V(s) if timeout           │
+│    Store: (obs, action, reward, done, V, log_π, μ, σ)        │
+│    RND: reward += ||predict(obs) - target(obs)||²            │
+│    Timeout bootstrap: reward += γ·V(s) if timeout            │
 │                                                              │
-│  Compute GAE (backward from T→0):                           │
-│    δ_t = r_t + γ·V(s_{t+1}) - V(s_t)                       │
-│    A_t = δ_t + γλ·A_{t+1}                                   │
-│    R_t = A_t + V(s_t)                                       │
-│    Normalize A: (A - mean) / std                            │
+│  Compute GAE (backward from T→0):                            │
+│    δ_t = r_t + γ·V(s_{t+1}) - V(s_t)                         │
+│    A_t = δ_t + γλ·A_{t+1}                                    │ 
+│    R_t = A_t + V(s_t)                                        │
+│    Normalize A: (A - mean) / std                             │
 └──────────────────────────────────────────────────────────────┘
                             │
                             ▼
@@ -850,28 +850,28 @@ Prevents "gradient explosion" — often caused by sudden extreme rewards (e.g., 
 │                     UPDATE PHASE (×20)                       │
 │                    [5 epochs × 4 batches]                    │
 │                                                              │
-│  Shuffle 98,304 transitions → 4 mini-batches (24,576 each)  │
+│  Shuffle 98,304 transitions → 4 mini-batches (24,576 each)   │
 │                                                              │
 │  For each mini-batch:                                        │
 │                                                              │
-│    ┌─ ACTOR LOSS ──────────────────────────────────────┐     │
-│    │ ratio = exp(log π_new - log π_old)                │     │
-│    │ L_clip = -min(ratio·A, clip(ratio,0.8,1.2)·A)     │     │
-│    └────────────────────────────────────────────────────┘     │
+│    ┌─ ACTOR LOSS ────────────────────────────────────── ┐    │
+│    │ ratio = exp(log π_new - log π_old)                 │    │
+│    │ L_clip = -min(ratio·A, clip(ratio,0.8,1.2)·A)      │    │
+│    └────────────────────────────────────────────────────┘    │
 │                                                              │
 │    ┌─ CRITIC LOSS ─────────────────────────────────────┐     │
 │    │ L_value = (V(s) - R)²                             │     │
-│    └────────────────────────────────────────────────────┘     │
+│    └───────────────────────────────────────────────────┘     │
 │                                                              │
 │    ┌─ ENTROPY BONUS ───────────────────────────────────┐     │
-│    │ -H(π) = -0.5·log(2πe·σ²)                         │     │
-│    └────────────────────────────────────────────────────┘     │
+│    │ -H(π) = -0.5·log(2πe·σ²)                          │     │
+│    └───────────────────────────────────────────────────┘     │
 │                                                              │
-│    L = L_clip + 1.0·L_value - 0.01·H(π)                     │
-│    loss.backward() → clip_grad(1.0) → Adam.step()           │
+│    L = L_clip + 1.0·L_value - 0.01·H(π)                      │
+│    loss.backward() → clip_grad(1.0) → Adam.step()            │
 │                                                              │
-│    Adaptive LR: KL(π_new||π_old) vs desired_kl=0.01         │
-│      KL > 0.02 → lr /= 1.5    KL < 0.005 → lr *= 1.5       │
+│    Adaptive LR: KL(π_new||π_old) vs desired_kl=0.01          │
+│      KL > 0.02 → lr /= 1.5    KL < 0.005 → lr *= 1.5         │
 │                                                              │
 └──────────────────────────────────────────────────────────────┘
 ```

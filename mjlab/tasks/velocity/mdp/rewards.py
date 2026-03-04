@@ -35,9 +35,7 @@ def track_linear_velocity(
   assert command is not None, f"Command '{command_name}' not found."
   actual = asset.data.root_link_lin_vel_b
   xy_error = torch.sum(torch.square(command[:, :2] - actual[:, :2]), dim=1)
-  z_error = torch.square(actual[:, 2])
-  lin_vel_error = xy_error + z_error
-  return torch.exp(-lin_vel_error / std**2)
+  return torch.exp(-xy_error / std**2)
 
 
 def track_angular_velocity(
@@ -156,10 +154,12 @@ def feet_clearance(
 ) -> torch.Tensor:
   """Penalize deviation from target clearance height, weighted by foot velocity."""
   asset: Entity = env.scene[asset_cfg.name]
+  terrain_height = env.scene.env_origins[:, 2]  # [B] per-env terrain base height
   foot_z = asset.data.site_pos_w[:, asset_cfg.site_ids, 2]  # [B, N]
   foot_vel_xy = torch.nan_to_num(asset.data.site_lin_vel_w[:, asset_cfg.site_ids, :2], nan=0.0)  # [B, N, 2]
   vel_norm = torch.norm(foot_vel_xy, dim=-1)  # [B, N]
-  delta = torch.abs(foot_z - target_height)  # [B, N]
+  foot_clearance = foot_z - terrain_height.unsqueeze(-1)  # [B, N] terrain-relative height
+  delta = torch.abs(foot_clearance - target_height)  # [B, N]
   cost = torch.mean(delta * vel_norm, dim=1)  # [B]
   if command_name is not None:
     command = env.command_manager.get_command(command_name)

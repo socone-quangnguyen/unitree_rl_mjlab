@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>PPO Training Loop — Unitree G1</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --blue: #58a6ff;
+      --green: #3fb950;
+      --orange: #f0883e;
+      --red: #f85149;
+      --purple: #bc8cff;
+      --yellow: #e3b341;
+      --dim: #8b949e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      padding: 28px 32px;
+    }
+    h1 {
+      text-align: center;
+      font-size: 1.8rem;
+      color: var(--blue);
+      letter-spacing: 0.04em;
+      margin-bottom: 6px;
+    }
+    .subtitle {
+      text-align: center;
+      color: var(--dim);
+      font-size: 0.85rem;
+      margin-bottom: 28px;
+    }
+
+    /* ── layout ── */
+    .layout {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      max-width: 1380px;
+      margin: 0 auto;
+    }
+    .phase {
+      flex: 1;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .phase-title {
+      text-align: center;
+      font-size: 1rem;
+      font-weight: 700;
+      padding: 7px 14px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      letter-spacing: 0.06em;
+    }
+    .rollout-title { background: rgba(88,166,255,.15); color: var(--blue);   border: 1px solid var(--blue); }
+    .update-title  { background: rgba(63,185,80,.15);  color: var(--green);  border: 1px solid var(--green); }
+
+    /* ── boxes ── */
+    .box {
+      border-radius: 8px;
+      padding: 11px 14px;
+      border: 1px solid var(--border);
+      font-size: 0.82rem;
+      line-height: 1.7;
+    }
+    .b-env    { background: rgba(188,140,255,.08); border-color: var(--purple); }
+    .b-actor  { background: rgba(88,166,255,.08);  border-color: var(--blue);   }
+    .b-critic { background: rgba(240,136,62,.08);  border-color: var(--orange); }
+    .b-buf    { background: rgba(63,185,80,.08);   border-color: var(--green);  }
+    .b-gae    { background: rgba(227,179,65,.08);  border-color: var(--yellow); }
+    .b-mini   { background: rgba(63,185,80,.08);   border-color: var(--green);  }
+    .b-actor-loss { background: rgba(248,81,73,.08);  border-color: var(--red);    }
+    .b-critic-loss{ background: rgba(240,136,62,.08); border-color: var(--orange); }
+    .b-entropy    { background: rgba(88,166,255,.08); border-color: var(--blue);   }
+    .b-total      { background: rgba(227,179,65,.08); border-color: var(--yellow); }
+    .b-adam       { background: rgba(63,185,80,.08);  border-color: var(--green);  }
+    .b-lr         { background: rgba(188,140,255,.08);border-color: var(--purple); }
+
+    .lbl {
+      font-weight: 700;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      margin-bottom: 5px;
+    }
+    .lbl-purple { color: var(--purple); }
+    .lbl-blue   { color: var(--blue);   }
+    .lbl-orange { color: var(--orange); }
+    .lbl-green  { color: var(--green);  }
+    .lbl-yellow { color: var(--yellow); }
+    .lbl-red    { color: var(--red);    }
+
+    .code { font-family: 'Consolas','Monaco',monospace; font-size: 0.8rem; color: #e6edf3; }
+    .formula {
+      font-family: monospace;
+      font-size: 0.79rem;
+      background: rgba(0,0,0,.3);
+      padding: 4px 8px;
+      border-radius: 4px;
+      margin-top: 5px;
+      color: #e6edf3;
+      line-height: 1.5;
+    }
+
+    /* tags */
+    .tag {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      margin: 2px 2px 2px 0;
+    }
+    .t-blue   { background: rgba(88,166,255,.25);  color: var(--blue);   }
+    .t-green  { background: rgba(63,185,80,.25);   color: var(--green);  }
+    .t-orange { background: rgba(240,136,62,.25);  color: var(--orange); }
+    .t-red    { background: rgba(248,81,73,.25);   color: var(--red);    }
+    .t-purple { background: rgba(188,140,255,.25); color: var(--purple); }
+    .t-yellow { background: rgba(227,179,65,.25);  color: var(--yellow); }
+
+    /* arrows */
+    .arr { text-align: center; color: var(--dim); font-size: 1.3rem; margin: 2px 0; }
+
+    /* side-by-side columns inside rollout */
+    .row2 { display: flex; gap: 8px; }
+    .row2 > * { flex: 1; }
+
+    /* connector */
+    .connector {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 72px;
+      flex-shrink: 0;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .connector .clabel {
+      color: var(--blue);
+      font-size: 0.72rem;
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    /* adaptive LR table */
+    .lr-row { display: flex; gap: 8px; margin-top: 6px; }
+    .lr-cell {
+      flex: 1;
+      background: rgba(0,0,0,.3);
+      border-radius: 6px;
+      padding: 7px 10px;
+      font-family: monospace;
+      font-size: 0.78rem;
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    /* bottom stats */
+    .stats {
+      max-width: 1380px;
+      margin: 20px auto 0;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 18px;
+      text-align: center;
+      font-size: 0.82rem;
+    }
+    .stat .val { font-size: 1.1rem; font-weight: 700; color: var(--yellow); display: block; }
+    .stat .key { color: var(--dim); }
+
+    /* feedback arrow */
+    .feedback {
+      margin-top: 12px;
+      text-align: center;
+      color: var(--blue);
+      font-size: 0.8rem;
+      border: 1px dashed rgba(88,166,255,.4);
+      border-radius: 8px;
+      padding: 8px;
+    }
+
+    .hi { color: var(--yellow); font-weight: 700; }
+    .dim { color: var(--dim); }
+  </style>
+</head>
+<body>
+
+<h1>PPO Training Loop</h1>
+<p class="subtitle">Unitree G1 Velocity Task · MuJoCo-Warp · 4096 envs · 24 steps/env · 5 epochs × 4 mini-batches</p>
+
+<div class="layout">
+
+  <!-- ═══════════════════ ROLLOUT PHASE ═══════════════════ -->
+  <div class="phase">
+    <div class="phase-title rollout-title">◀ ROLLOUT PHASE ▶</div>
+
+    <!-- ENV -->
+    <div class="box b-env">
+      <div class="lbl lbl-purple">Environment</div>
+      <span class="tag t-purple">MuJoCo-Warp GPU</span>
+      <span class="tag t-purple">4096 envs parallel</span>
+      <div class="formula">sim.step(action) → obs, reward, done, info</div>
+    </div>
+
+    <div class="arr">↓ <span class="dim" style="font-size:0.75rem">obs  (4096 × obs_dim)</span></div>
+
+    <!-- ACTOR + CRITIC side by side -->
+    <div class="row2">
+      <div class="box b-actor">
+        <div class="lbl lbl-blue">Actor MLP</div>
+        <div class="code">obs_dim → 512 → 256 → 128 → num_actions</div>
+        <div class="code">activation: ELU</div>
+        <div class="formula">μ = MLP(norm(obs))<br>σ = exp(log_std)  ← learned param<br>π(a|s) = N(μ, σ)<br>a ~ π  →  <span style="color:var(--blue)">action</span><br>log π(a|s) stored</div>
+      </div>
+      <div class="box b-critic">
+        <div class="lbl lbl-orange">Critic MLP</div>
+        <div class="code">obs_dim → 512 → 256 → 128 → 1</div>
+        <div class="code">activation: ELU</div>
+        <div class="formula">V(s) = MLP(norm(obs))<br><br><br><span class="dim">← baseline để giảm<br>   variance của gradient</span></div>
+      </div>
+    </div>
+
+    <div class="arr">↓</div>
+
+    <!-- BUFFER -->
+    <div class="box b-buf">
+      <div class="lbl lbl-green">Rollout Buffer  —  24 steps × 4096 envs</div>
+      <div style="margin: 4px 0 6px;">
+        <span class="tag t-blue">obs</span>
+        <span class="tag t-blue">action a</span>
+        <span class="tag t-green">reward r</span>
+        <span class="tag t-red">done</span>
+        <span class="tag t-orange">V(s)</span>
+        <span class="tag t-purple">log π(a|s)</span>
+        <span class="tag t-yellow">μ, σ</span>
+      </div>
+      <div class="formula">Total: <span class="hi">98,304</span> transitions / iteration
+Timeout bootstrap: r_t += γ·V(s_t)  if done &amp; timeout</div>
+    </div>
+
+    <div class="arr">↓</div>
+
+    <!-- GAE -->
+    <div class="box b-gae">
+      <div class="lbl lbl-yellow">GAE — Generalized Advantage Estimation  (backward T→0)</div>
+      <div class="formula">δ_t  = r_t + γ·V(s_{t+1}) − V(s_t)          <span class="dim">← TD error</span>
+A_t  = δ_t + (γλ)·A_{t+1}                   <span class="dim">← advantage (recursive)</span>
+R_t  = A_t + V(s_t)                          <span class="dim">← return target</span>
+Â_t  = (A_t − μ_A) / σ_A                    <span class="dim">← normalize</span></div>
+      <div style="margin-top:7px">
+        <span class="tag t-yellow">γ = 0.99</span>
+        <span class="tag t-yellow">λ = 0.95</span>
+        <span class="dim" style="font-size:0.75rem;margin-left:4px">γ cao → ưu tiên dài hạn · λ cân bằng bias/variance</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════ CONNECTOR ═══════════════════ -->
+  <div class="connector">
+    <div class="clabel">98,304<br>transitions</div>
+    <svg width="52" height="36" viewBox="0 0 52 36">
+      <defs>
+        <marker id="ah" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3z" fill="#58a6ff"/>
+        </marker>
+      </defs>
+      <line x1="2" y1="18" x2="46" y2="18" stroke="#58a6ff" stroke-width="2.5"
+            marker-end="url(#ah)" stroke-dasharray="6 3"/>
+    </svg>
+  </div>
+
+  <!-- ═══════════════════ UPDATE PHASE ═══════════════════ -->
+  <div class="phase">
+    <div class="phase-title update-title">◀ UPDATE PHASE × 20 ▶  <span style="font-weight:400;font-size:0.8rem">[5 epochs × 4 batches]</span></div>
+
+    <!-- SHUFFLE -->
+    <div class="box b-mini">
+      <div class="lbl lbl-green">Shuffle &amp; Mini-batch</div>
+      <div class="formula">98,304 transitions → shuffle → 4 mini-batches
+each mini-batch: <span class="hi">24,576</span> transitions</div>
+    </div>
+
+    <div class="arr">↓</div>
+
+    <!-- ACTOR LOSS -->
+    <div class="box b-actor-loss">
+      <div class="lbl lbl-red">Actor Loss — PPO Clipped Surrogate</div>
+      <div class="formula">ratio  = exp(log π_new(a|s) − log π_old(a|s))
+L_clip = −mean[ min(ratio·Â, clip(ratio, 0.8, 1.2)·Â) ]</div>
+      <div style="margin-top:6px">
+        <span class="tag t-red">clip_param = 0.2</span>
+        <span class="dim" style="font-size:0.75rem;margin-left:4px">ngăn cập nhật quá lớn</span>
+      </div>
+    </div>
+
+    <div class="arr" style="color:var(--yellow);font-size:1rem">＋ value_loss_coef × L_value</div>
+
+    <!-- CRITIC LOSS -->
+    <div class="box b-critic-loss">
+      <div class="lbl lbl-orange">Critic Loss — Value Function MSE</div>
+      <div class="formula">L_value = mean[ (V(s) − R_t)² ]</div>
+      <div style="margin-top:6px">
+        <span class="tag t-orange">value_loss_coef = 1.0</span>
+        <span class="tag t-orange">use_clipped_value_loss = True</span>
+      </div>
+    </div>
+
+    <div class="arr" style="color:var(--yellow);font-size:1rem">− entropy_coef × H(π)</div>
+
+    <!-- ENTROPY -->
+    <div class="box b-entropy">
+      <div class="lbl lbl-blue">Entropy Bonus — Khuyến khích khám phá</div>
+      <div class="formula">H(π) = 0.5·mean[ log(2πe·σ²) ]   <span class="dim">← Gaussian entropy</span></div>
+      <div style="margin-top:6px">
+        <span class="tag t-blue">entropy_coef = 0.01</span>
+        <span class="dim" style="font-size:0.75rem;margin-left:4px">entropy cao → std lớn → khám phá nhiều</span>
+      </div>
+    </div>
+
+    <div class="arr">↓</div>
+
+    <!-- TOTAL LOSS -->
+    <div class="box b-total">
+      <div class="lbl lbl-yellow">Total Loss</div>
+      <div class="formula">L = L_clip  +  <span style="color:var(--orange)">1.0</span>·L_value  −  <span style="color:var(--blue)">0.01</span>·H(π)</div>
+    </div>
+
+    <div class="arr">↓</div>
+
+    <!-- ADAM -->
+    <div class="box b-adam">
+      <div class="lbl lbl-green">Adam Optimizer</div>
+      <div class="formula">loss.backward()
+clip_grad_norm_(params, max_norm=<span class="hi">1.0</span>)
+optimizer.step()</div>
+      <div style="margin-top:6px">
+        <span class="tag t-green">lr = 1e-3  (adaptive)</span>
+        <span class="tag t-green">Adam β₁=0.9, β₂=0.999</span>
+      </div>
+    </div>
+
+    <div class="arr">↓</div>
+
+    <!-- ADAPTIVE LR -->
+    <div class="box b-lr">
+      <div class="lbl lbl-purple">Adaptive Learning Rate  —  KL Divergence Monitor</div>
+      <div class="formula">KL ≈ 0.5·mean[(μ_old−μ_new)²/σ_new² + σ_old²/σ_new² − 1 + 2·log(σ_new/σ_old)]</div>
+      <div class="lr-row">
+        <div class="lr-cell" style="border:1px solid var(--red)">
+          <span style="color:var(--red)">KL &gt; 0.02</span><br>
+          policy thay đổi quá nhiều<br>
+          <strong>lr ÷= 1.5</strong><br>
+          <span class="dim">← giảm bước học</span>
+        </div>
+        <div class="lr-cell" style="border:1px solid var(--dim)">
+          <span style="color:var(--dim)">0.005 ≤ KL ≤ 0.02</span><br>
+          vùng lý tưởng<br>
+          <strong>lr không đổi</strong><br>
+          <span class="dim">← ổn định</span>
+        </div>
+        <div class="lr-cell" style="border:1px solid var(--green)">
+          <span style="color:var(--green)">KL &lt; 0.005</span><br>
+          policy thay đổi ít<br>
+          <strong>lr ×= 1.5</strong><br>
+          <span class="dim">← tăng bước học</span>
+        </div>
+      </div>
+      <div style="margin-top:6px">
+        <span class="tag t-purple">desired_kl = 0.01</span>
+      </div>
+    </div>
+
+    <!-- FEEDBACK -->
+    <div class="feedback">
+      ↑ Cập nhật Actor &amp; Critic weights → quay lại Rollout Phase (iteration tiếp theo)
+    </div>
+
+  </div>
+</div>
+
+<!-- STATS BAR -->
+<div class="stats">
+  <div class="stat"><span class="val">4,096</span><span class="key">Parallel Envs</span></div>
+  <div class="stat"><span class="val">24</span><span class="key">Steps / Env / Iter</span></div>
+  <div class="stat"><span class="val">98,304</span><span class="key">Transitions / Iter</span></div>
+  <div class="stat"><span class="val">5 × 4 = 20</span><span class="key">Gradient Updates / Iter</span></div>
+  <div class="stat"><span class="val">2,000</span><span class="key">Total Iterations</span></div>
+  <div class="stat"><span class="val">~196M</span><span class="key">Total Env Steps</span></div>
+  <div class="stat"><span class="val">every 100</span><span class="key">Checkpoint Save</span></div>
+</div>
+
+</body>
+</html>
